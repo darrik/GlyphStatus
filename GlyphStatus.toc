@@ -1,0 +1,11 @@
+## Interface: 50001
+## Title: Glyph Status
+## Notes: Keeps track of your characters' unknown glyphs.
+## Author: Rikard Glans
+## Version: v2.0
+## X-Email: rikard@ecx.se
+## X-Category: Misc
+## SavedVariables: GSDB
+
+GlyphStatus.lua
+
