@@ -13,3 +13,5 @@ glyph making marathon on your scribe.
 
 You can use `/gs me` as a shortcut for your current character.
 
+## Screenshot
+![screenshot](https://raw.github.com/darrik/GlyphStatus/master/screenshot/glyphstatus.jpg "screenshot")
