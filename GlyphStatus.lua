@@ -1,6 +1,8 @@
 -----------------------------------------------------------------------------
 -- GlyphStatus (c) 2011-2012 Rikard Glans (rikard@ecx.se)
 ----------------------------------------------------------------------------
+local NDEBUG = false;
+
 local f = CreateFrame("Frame", "GlyphStatus");
 f:RegisterEvent("ADDON_LOADED");
 f:RegisterEvent("GLYPH_ADDED");
@@ -10,35 +12,93 @@ f:RegisterEvent("USE_GLYPH");
 f:RegisterEvent("VARIABLES_LOADED");
 f:RegisterEvent("PLAYER_ENTERING_WORLD");
 
-local NDEBUG = false;
-
 f:SetScript("OnEvent",
-            function(self, event, ...)
-              if(event == "ADDON_LOADED") then
-                self:UnregisterEvent("ADDON_LOADED");
+function(self, event, ...)
+  if(event == "ADDON_LOADED") then
+    self:UnregisterEvent("ADDON_LOADED");
 
-                _G.SLASH_GLYPHSTATUS1 = "/gs";
-                _G.SLASH_GLYPHSTATUS2 = "/ngs";
-                _G.SLASH_GLYPHSTATUS3 = "/glyphstatus";
-                _G.SlashCmdList["GLYPHSTATUS"] = function(...) self:SlashCMD(...); end;
-              elseif(event == "VARIABLES_LOADED") then
-                self:UnregisterEvent("VARIABLES_LOADED");
+    _G.SLASH_GLYPHSTATUS1 = "/gs";
+    _G.SLASH_GLYPHSTATUS2 = "/ngs";
+    _G.SLASH_GLYPHSTATUS3 = "/glyphstatus";
+    _G.SlashCmdList["GLYPHSTATUS"] = function(...) self:SlashCMD(...); end;
+  elseif(event == "VARIABLES_LOADED") then
+    self:UnregisterEvent("VARIABLES_LOADED");
 
-                self.player = self:GetPlayer();
-                self.class = self:GetClass();
+    self.player = self:GetPlayer();
+    self.class = self:GetClass();
 
-                if(not GSDB) then
-                  GSDB = {};
-                end
+    if(not GSDB) then
+      GSDB = {};
+    end
 
-                if(not GSDB[self.player]) then
-                  self:Update();
-                end
-              else
-                self:Update();
-              end
-          end
+    if(not GSDB[self.player]) then
+      self:Update();
+    end
+
+    self:Setup();
+  else
+    self:Update();
+  end
+end
 )
+
+function f:Setup()
+  local LIST_BACKDROP = {
+    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true,
+    tileSize = 16,
+    edgeSize = 16,
+    insets = { left = 5, right = 5, top = 5, bottom = 5 },
+  };
+
+  f.ListFrame = CreateFrame("Frame", "GlyphStatusFrame", UIParent, "DialogBoxFrame");
+  f.ListFrame:Hide();
+  f.ListFrame:SetWidth(540);
+  f.ListFrame:SetHeight(380);
+  f.ListFrame:SetPoint("CENTER");
+  f.ListFrame:SetFrameStrata("DIALOG");
+  f.ListFrame:SetBackdrop(LIST_BACKDROP);
+  f.ListFrame:SetMovable(true);
+  f.ListFrame:EnableMouse(true);
+  f.ListFrame:SetScript("OnMouseDown", function(self, button)
+    if button == "LeftButton" and not self.isMoving then
+      self:StartMoving();
+      self.isMoving = true;
+    end
+  end)
+  f.ListFrame:SetScript("OnMouseUp", function(self, button)
+    if button == "LeftButton" and self.isMoving then
+      self:StopMovingOrSizing();
+      self.isMoving = false;
+    end
+  end)
+  f.ListFrame:SetScript("OnHide", function(self)
+    if(self.isMoving) then
+      self:StopMovingOrSizing();
+      self.isMoving = false;
+    end
+  end)
+
+  f.ListFrame_ScrollFrame = CreateFrame("ScrollFrame", "GlyphStatusListFrame_ScrollFrame", f.ListFrame, "UIPanelScrollFrameTemplate");
+  f.ListFrame_ScrollFrame:SetPoint("TOP", -10, -30);
+  f.ListFrame_ScrollFrame:SetWidth(f.ListFrame:GetWidth()-50);
+  f.ListFrame_ScrollFrame:SetHeight(f.ListFrame:GetHeight()-80);
+
+  f.ListFrame_ScrollText = CreateFrame("EditBox", "GlyphStatusListFrame_ScrollText", f.ListFrame_ScrollFrame);
+  f.ListFrame_ScrollText:SetWidth(f.ListFrame_ScrollFrame:GetWidth()-50);
+  f.ListFrame_ScrollText:SetHeight(f.ListFrame_ScrollFrame:GetHeight());
+  f.ListFrame_ScrollText:SetAutoFocus(false);
+  f.ListFrame_ScrollText:SetMultiLine(true);
+  f.ListFrame_ScrollText:SetFontObject(ChatFontNormal);
+  f.ListFrame_ScrollText:SetScript("OnEscapePressed", function(self) self:ClearFocus(); end)
+
+  f.ListFrame_Title = f.ListFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlight");
+
+  f.ListFrame_ScrollFrame:SetScrollChild(f.ListFrame_ScrollText);
+
+  tinsert(UISpecialFrames, "GlyphStatusFrame");
+end
 
 function f:GetPlayer(player)
   local char = string.lower((player or UnitName("player")) .. "@" .. GetRealmName());
@@ -76,7 +136,6 @@ end
 
 function f:List(char)
   local c = 0;
-  local txt = 0;
 
   if(not string.find(char, "@")) then
     char = f:GetPlayer(char);
@@ -88,18 +147,17 @@ function f:List(char)
     return(1);
   end
 
-  self:Printf("%s is missing the following glyphs:", char);
+  f.ListFrame_ScrollText:SetText("");
+
+  local title = "GlyphStatus - " .. char .. "'s missing glyphs";
+  f.ListFrame_Title:SetText(title);
+  f.ListFrame_Title:SetPoint("TOPLEFT", ((f.ListFrame:GetWidth() - f.ListFrame_Title:GetStringWidth()) / 2), -5);
+
   for _, glyph in pairs(GSDB[char]) do
     if(glyph and glyph.name) then
       self:Debug("glyph.name: " .. glyph.name);
 
-      if(glyph.link) then
-        txt = c+1 .. ": " .. glyph.link;
-      else
-        txt = c+1 .. ": " .. glyph.name;
-      end
-
-      self:Print(txt);
+      f.ListFrame_ScrollText:Insert(glyph.name .. "\n");
 
       c = c + 1;
     end
@@ -108,7 +166,7 @@ function f:List(char)
   if(c == 0) then
     self:Printf("%s knows 'em all, yay!", char);
   else
-    self:Printf("Glyphs missing: %d", c);
+    f.ListFrame:Show();
   end
 end
 
@@ -133,11 +191,11 @@ function f:Help()
 end
 
 function f:Print(msg)
-  SELECTED_CHAT_FRAME:AddMessage(msg);
+  SELECTED_CHAT_FRAME:AddMessage("[GlyphStatus] " .. msg);
 end
 
 function f:Printf(msg, ...)
-  SELECTED_CHAT_FRAME:AddMessage(msg:format(...));
+  SELECTED_CHAT_FRAME:AddMessage("[GlyphStatus] " .. msg:format(...));
 end
 
 function f:Debug(msg)
