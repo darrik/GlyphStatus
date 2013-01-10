@@ -58,12 +58,14 @@ function f:Update()
   db.level = tostring(UnitLevel("player"));
 
   for i = 1, GetNumGlyphs() do
-    local name, _, isKnown = GetGlyphInfo(i);
+    local name, _, isKnown, _, id, link = GetGlyphInfo(i);
 
     if(name ~= "header" and isKnown == false) then
       g       = {};
       g.name  = name;
       g.known = isKnown;
+      g.id    = id;
+      g.link  = link;
 
       table.insert(db, g);
     end
@@ -74,6 +76,7 @@ end
 
 function f:List(char)
   local c = 0;
+  local txt = 0;
 
   if(not string.find(char, "@")) then
     char = f:GetPlayer(char);
@@ -87,8 +90,17 @@ function f:List(char)
 
   self:Printf("%s is missing the following glyphs:", char);
   for _, glyph in pairs(GSDB[char]) do
-    if(glyph) then
-      self:Print(glyph.name);
+    if(glyph and glyph.name) then
+      self:Debug("glyph.name: " .. glyph.name);
+
+      if(glyph.link) then
+        txt = c+1 .. ": " .. glyph.link;
+      else
+        txt = c+1 .. ": " .. glyph.name;
+      end
+
+      self:Print(txt);
+
       c = c + 1;
     end
   end
@@ -96,7 +108,7 @@ function f:List(char)
   if(c == 0) then
     self:Printf("%s knows 'em all, yay!", char);
   else
-    self:Printf("Total glyphs missing: %d", c);
+    self:Printf("Glyphs missing: %d", c);
   end
 end
 
@@ -111,19 +123,21 @@ function f:SlashCMD(str)
     self:Update();
   elseif(cmd == "me") then
     self:List(self:GetPlayer());
+  else
+    self:List(cmd);
   end
 end
 
 function f:Help()
-  self:Print("Usage: /ngs <character>");
+  self:Print("Usage: /gs <character>");
 end
 
 function f:Print(msg)
-  SELECTED_CHAT_FRAME:AddMessage("[GlyphStatus] " .. msg);
+  SELECTED_CHAT_FRAME:AddMessage(msg);
 end
 
 function f:Printf(msg, ...)
-  SELECTED_CHAT_FRAME:AddMessage("[GlyphStatus] " .. msg:format(...));
+  SELECTED_CHAT_FRAME:AddMessage(msg:format(...));
 end
 
 function f:Debug(msg)
