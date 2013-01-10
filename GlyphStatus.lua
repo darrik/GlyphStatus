@@ -101,7 +101,7 @@ function f:Setup()
 end
 
 function f:GetPlayer(player)
-  local char = string.lower((player or UnitName("player")) .. "@" .. GetRealmName());
+  local char = string.lower((player or UnitName("player")) .. "@" .. GetRealmName():gsub("%W", ""));
 
   return(char);
 end
@@ -142,7 +142,7 @@ function f:List(char)
   end
 
   if(not GSDB[char]) then
-    self:Print(string.format("DEBUG: %s not found.", char));
+    self:Printf("%s not found.", char);
     self:Help();
     return(1);
   end
